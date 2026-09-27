@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>VTuber Owl</title>
+  <link rel="stylesheet" href="style.css">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+
+  <!-- 3D canvas -->
+  <canvas id="canvas"></canvas>
+
+  <!-- Start screen -->
+  <div id="start-screen">
+    <div class="start-card">
+      <div class="owl-icon">🦉</div>
+      <h1>VTuber Owl</h1>
+      <p>カメラとマイクを使って<br>フクロウを動かします</p>
+      <button id="start-btn">はじめる</button>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div id="status-bar">
+      <span class="status-item">
+        <span id="status-face" class="dot">○</span> 顔
+      </span>
+      <span class="status-item">
+        <span id="status-audio" class="dot">○</span> マイク
+      </span>
+    </div>
+
+    <!-- Volume meter -->
+    <div id="vol-meter">
+      <div id="vol-bar"></div>
+      <div id="threshold-line" id="thresh-line"></div>
+    </div>
+
+    <!-- Threshold control -->
+    <details id="settings">
+      <summary>⚙️ 感度設定</summary>
+      <div class="settings-row">
+        <label>口開きしきい値</label>
+        <input id="threshold-slider" type="range" min="0.005" max="0.08" step="0.005" value="0.02">
+        <span id="threshold-value">0.02</span>
+      </div>
+    </details>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

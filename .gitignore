@@ -1,0 +1,17 @@
+# Node.js
+VTuberWeb/server/node_modules/
+
+# Xcode
+VTuberApp/*.xcodeproj/xcuserdata/
+VTuberApp/*.xcodeproj/project.xcworkspace/xcuserdata/
+VTuberApp/DerivedData/
+VTuberApp/*.xcworkspace/
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# macOS
+.DS_Store
+**/.DS_Store
