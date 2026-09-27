@@ -6,13 +6,14 @@
   <title>VTuber Owl</title>
   <link rel="stylesheet" href="style.css">
 
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
-    }
-  }
-  </script>
+  <!--
+    Live2D Cubism Core — 要配置
+    https://www.live2d.com/download/cubism-sdk/download-web/ から SDK をダウンロードし
+    Core/live2dcubismcore.min.js を public/ 直下に配置してください
+  -->
+  <script src="live2dcubismcore.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
 </head>
 <body>
 
@@ -24,7 +25,7 @@
     <div class="start-card">
       <div class="owl-icon">🦉</div>
       <h1>VTuber Owl</h1>
-      <p>カメラとマイクを使って<br>フクロウを動かします</p>
+      <p>カメラとマイクを使って<br>キャラクターを動かします</p>
       <button id="start-btn">はじめる</button>
     </div>
   </div>
@@ -43,7 +44,6 @@
     <!-- Volume meter -->
     <div id="vol-meter">
       <div id="vol-bar"></div>
-      <div id="threshold-line" id="thresh-line"></div>
     </div>
 
     <!-- Threshold control -->
