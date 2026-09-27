@@ -2,10 +2,10 @@ import { Live2DCharacter } from './live2dCharacter.js';
 import { FaceTracker }     from './faceTracker.js';
 import { AudioTracker }    from './audioTracker.js';
 
-// モデルの .model3.json ファイルへのパス（モデル配置後に変更してください）
+// モデルの .model3.json ファイルへのパス（モデル配置後に変更）
 const MODEL_PATH = 'models/your_model/your_model.model3.json';
 
-// ── Pixi.js Setup ─────────────────────────────────────────────
+// ── Pixi.js ──────────────────────────────────────────────────
 const app = new PIXI.Application({
   view:            document.getElementById('canvas'),
   width:           window.innerWidth,
@@ -26,32 +26,37 @@ const character    = new Live2DCharacter(app);
 const faceTracker  = new FaceTracker();
 const audioTracker = new AudioTracker();
 
-// ── State ─────────────────────────────────────────────────────
-let mouthTarget  = 0;
-let mouthCurrent = 0;
-let headEuler    = { x: 0, y: 0, z: 0 };
-let eyeBlink     = { left: 0, right: 0 };
-let eyebrow      = { browInnerUp: 0, browDownLeft: 0, browDownRight: 0 };
-
-// ── Audio → mouth ─────────────────────────────────────────────
-audioTracker.onUpdate = (rms, isAbove) => {
-  mouthTarget = isAbove ? Math.min(rms / (audioTracker.threshold * 4), 1.0) : 0;
-
-  const pct = Math.min(rms / 0.1 * 100, 100);
-  document.getElementById('vol-bar').style.width      = pct + '%';
-  document.getElementById('vol-bar').style.background = isAbove ? '#4ade80' : '#60a5fa';
+// ── Tracking state ─────────────────────────────────────────────
+const state = {
+  mouthTarget: 0,
+  mouthSmooth: 0,
+  head:  { x: 0, y: 0, z: 0 },
+  eye:   { left: 0, right: 0 },
+  brow:  { innerUp: 0, downLeft: 0, downRight: 0 },
 };
 
-// ── Face → params ─────────────────────────────────────────────
+// ── Audio callback ─────────────────────────────────────────────
+const volBar = document.getElementById('vol-bar');
+audioTracker.onUpdate = (rms, isAbove) => {
+  state.mouthTarget = isAbove
+    ? Math.min(rms / (audioTracker.threshold * 4), 1.0)
+    : 0;
+
+  const pct = Math.min(rms / 0.1 * 100, 100);
+  volBar.style.width      = pct + '%';
+  volBar.style.background = isAbove ? '#4ade80' : '#60a5fa';
+};
+
+// ── Face callback ──────────────────────────────────────────────
 faceTracker.onUpdate = ({ matrix, blendshapes }) => {
-  headEuler = eulerFromMatrix(matrix);
+  state.head = eulerFromMatrix(matrix);
 
   const get = name => blendshapes.find(b => b.categoryName === name)?.score ?? 0;
-  eyeBlink = { left: get('eyeBlinkLeft'), right: get('eyeBlinkRight') };
-  eyebrow  = {
-    browInnerUp:   get('browInnerUp'),
-    browDownLeft:  get('browDownLeft'),
-    browDownRight: get('browDownRight'),
+  state.eye  = { left: get('eyeBlinkLeft'), right: get('eyeBlinkRight') };
+  state.brow = {
+    innerUp:   get('browInnerUp'),
+    downLeft:  get('browDownLeft'),
+    downRight: get('browDownRight'),
   };
 
   setStatus('face', true);
@@ -59,17 +64,17 @@ faceTracker.onUpdate = ({ matrix, blendshapes }) => {
 
 faceTracker.onLost = () => setStatus('face', false);
 
-// ── スムージングループ ─────────────────────────────────────────
+// ── Render loop ────────────────────────────────────────────────
 app.ticker.add(() => {
-  mouthCurrent += (mouthTarget - mouthCurrent) * 0.25;
+  state.mouthSmooth += (state.mouthTarget - state.mouthSmooth) * 0.25;
 
-  character.setHeadRotation(headEuler.x, headEuler.y, headEuler.z);
-  character.setEyeBlink(eyeBlink.left, eyeBlink.right);
-  character.setMouthOpen(mouthCurrent);
-  character.setEyebrow(eyebrow.browInnerUp, eyebrow.browDownLeft, eyebrow.browDownRight);
+  character.setHeadRotation(state.head.x, state.head.y, state.head.z);
+  character.setEyeBlink(state.eye.left, state.eye.right);
+  character.setMouthOpen(state.mouthSmooth);
+  character.setBrow(state.brow.innerUp, state.brow.downLeft, state.brow.downRight);
 });
 
-// ── Start button ──────────────────────────────────────────────
+// ── Start button ───────────────────────────────────────────────
 document.getElementById('start-btn').addEventListener('click', async () => {
   document.getElementById('start-screen').style.display = 'none';
   setStatus('face',  false);
@@ -86,19 +91,19 @@ document.getElementById('start-btn').addEventListener('click', async () => {
   }
 
   character.load(MODEL_PATH).catch(e =>
-    console.warn('Live2D モデルのロードに失敗しました（モデル配置後に再試行してください）:', e)
+    console.warn('Live2D モデルのロードに失敗:', e)
   );
 });
 
-// ── Threshold slider ──────────────────────────────────────────
+// ── Threshold slider ───────────────────────────────────────────
 const slider = document.getElementById('threshold-slider');
 const label  = document.getElementById('threshold-value');
 slider.addEventListener('input', () => {
   audioTracker.threshold = parseFloat(slider.value);
-  label.textContent = slider.value;
+  label.textContent      = slider.value;
 });
 
-// ── Helpers ───────────────────────────────────────────────────
+// ── Utilities ──────────────────────────────────────────────────
 function setStatus(type, ok) {
   const el = document.getElementById(`status-${type}`);
   if (!el) return;
@@ -108,18 +113,10 @@ function setStatus(type, ok) {
 
 // MediaPipe の列優先 4x4 行列から YXZ オイラー角（ラジアン）を取得
 function eulerFromMatrix(data) {
-  // column-major: index = col * 4 + row
-  const m12 = data[9];
-  const m02 = data[8];
-  const m22 = data[10];
-  const m10 = data[1];
-  const m11 = data[5];
-  const m20 = data[2];
-  const m00 = data[0];
-
+  const m12 = data[9], m02 = data[8], m22 = data[10];
+  const m10 = data[1], m11 = data[5], m20 = data[2], m00 = data[0];
   const x = Math.asin(-Math.max(-1, Math.min(1, m12)));
-  if (Math.abs(m12) < 0.9999999) {
-    return { x, y: Math.atan2(m02, m22), z: Math.atan2(m10, m11) };
-  }
-  return { x, y: Math.atan2(-m20, m00), z: 0 };
+  return Math.abs(m12) < 0.9999999
+    ? { x, y: Math.atan2(m02, m22), z: Math.atan2(m10, m11) }
+    : { x, y: Math.atan2(-m20, m00), z: 0 };
 }
