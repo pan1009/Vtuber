@@ -6,25 +6,41 @@
 
 ---
 
-## Step 1 — Live2D Cubism Core を配置する
+## Step 1 — Live2D Cubism Core について
 
-1. 以下の URL から **Cubism SDK for Web** をダウンロード  
-   https://www.live2d.com/download/cubism-sdk/download-web/
+アプリ（`index.html` / `test.html`）は Cubism Core を Live2D 公式の配布 URL から読み込むので、配置は不要。
 
-2. ZIP を展開し、以下のファイルを `public/` 直下にコピー
+```
+https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js
+```
 
-   ```
-   CubismSdkForWeb-*/Core/live2dcubismcore.min.js
-         ↓ コピー先
-   VTuberWeb/public/live2dcubismcore.min.js
-   ```
+検証スクリプト（`tools/owl/verify.js`）を使う場合のみ、ローカルにダウンロードしておく（git 管理外）。
+
+```bash
+curl -o VTuberWeb/public/live2dcubismcore.min.js \
+  https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js
+```
+
+---
+
+## Web に公開する（GitHub Pages・無料）
+
+`main` ブランチに push すると、GitHub Actions（`.github/workflows/pages.yml`）が `VTuberWeb/public/` を GitHub Pages に公開する。
+
+- 公開 URL: https://pan1009.github.io/Vtuber/
+- テストページ: https://pan1009.github.io/Vtuber/test.html
+- HTTPS なので、PC・iPhone どちらからでもカメラ・マイクが使える（証明書の警告も出ない）
+- 手動で再公開: GitHub の Actions タブ →「Deploy to GitHub Pages」→「Run workflow」
+
+> 公開リポジトリのため、`public/` に置いたモデルは誰でもダウンロードできる。  
+> 購入したモデルなど再配布できないものは置かないこと。
 
 ---
 
 ## テスト用フクロウモデル（自分のモデルが無くても動作確認できる）
 
 `public/models/test_owl/` に、スクリプトで生成したテスト用のフクロウモデルが入っている。  
-`MODEL_PATH` の初期値はこのモデルなので、Step 1 だけ済ませればすぐに Step 5 へ進める。
+`MODEL_PATH` の初期値はこのモデルなので、すぐに Step 5 へ進める（公開版ならそのまま開くだけ）。
 
 | パラメータ | 動き |
 |-----------|------|
@@ -51,7 +67,7 @@ node tools/owl/generate.js   # public/models/test_owl/ を再生成
 node tools/owl/verify.js     # Cubism Core で読み込み、各パラメータの動作を検証
 ```
 
-`verify.js` は `public/live2dcubismcore.min.js`（Step 1）を使う。  
+`verify.js` は `public/live2dcubismcore.min.js`（Step 1 でダウンロード）を使う。  
 形や動きは `tools/owl/generate.js` の `SHAPES` / `MESHES` / `deformers` を編集して調整する。
 
 ---
@@ -156,7 +172,7 @@ iPhone: https://<ローカルIP>:8443  ← 同じ Wi-Fi なら iPhone からも�
 
 ### モデルが表示されない
 - ブラウザのコンソール（F12）でエラーメッセージを確認する
-- `live2dcubismcore.min.js` が `public/` 直下に存在するか確認する
+- 開発者ツールの Network タブで `live2dcubismcore.min.js` の読み込みに失敗していないか確認する
 - `MODEL_PATH` のファイル名・パスが実際のファイルと一致しているか確認する
 - ファイルパスは大文字・小文字を区別するので注意
 
