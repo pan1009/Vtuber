@@ -109,9 +109,9 @@ const MODEL_PATH = 'models/your_owl/your_owl.model3.json';
 
 ```js
 const PARAMS = {
-  angleX:    'ParamAngleX',      // 頭：左右傾き
-  angleY:    'ParamAngleY',      // 頭：左右向き
-  angleZ:    'ParamAngleZ',      // 頭：回転
+  angleX:    'ParamAngleX',      // 顔の向き：左右
+  angleY:    'ParamAngleY',      // 顔の向き：上下
+  angleZ:    'ParamAngleZ',      // 頭の傾き
   eyeLOpen:  'ParamEyeLOpen',    // 左目開閉
   eyeROpen:  'ParamEyeROpen',    // 右目開閉
   mouthOpen: 'ParamMouthOpenY',  // 口開き
