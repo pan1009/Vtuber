@@ -1,20 +1,12 @@
 import { Live2DCharacter } from './live2dCharacter.js';
 import { FaceTracker }     from './faceTracker.js';
 import { AudioTracker }    from './audioTracker.js';
+import { MODEL_PATH, STAGE_CHANNEL, createPixiApp } from './config.js';
 
-// モデルの .model3.json ファイルへのパス（自分のモデルを配置したら変更）
-const MODEL_PATH = 'models/test_owl/test_owl.model3.json';
+// ホスト画面：顔認識・ボイスチェンジを行い、動きをゲスト画面（stage.html）へ送る
 
 // ── Pixi.js ──────────────────────────────────────────────────
-const app = new PIXI.Application({
-  view:            document.getElementById('canvas'),
-  width:           window.innerWidth,
-  height:          window.innerHeight,
-  antialias:       true,
-  backgroundColor: 0x0d0d2e,
-  resolution:      Math.min(window.devicePixelRatio, 2),
-  autoDensity:     true,
-});
+const app = createPixiApp(document.getElementById('canvas'));
 
 // スマホの回転・アドレスバーの出し入れにも追従する
 function onResize() {
@@ -81,6 +73,37 @@ app.ticker.add(() => {
   character.setEyeBlink(state.eye.left, state.eye.right);
   character.setMouthOpen(state.mouthSmooth);
   character.setBrow(state.brow.innerUp, state.brow.downLeft, state.brow.downRight);
+
+  if (stageConnected) stage.postMessage({ type: 'params', params: character.params });
+});
+
+// ── Guest screen (stage.html) ──────────────────────────────────
+// 同じブラウザの別ウィンドウと BroadcastChannel でやりとりする
+const stage = new BroadcastChannel(STAGE_CHANNEL);
+let stageConnected = false;
+let stageLastSeen  = 0;
+
+stage.onmessage = ({ data }) => {
+  if (data.type === 'stage-hello') {
+    stageLastSeen = performance.now();
+    setStageStatus(true);
+  } else if (data.type === 'stage-bye') {
+    setStageStatus(false);
+  }
+};
+
+// ゲスト画面は 1 秒ごとに hello を送ってくる。3 秒来なければ切断扱い
+setInterval(() => {
+  if (stageConnected && performance.now() - stageLastSeen > 3000) setStageStatus(false);
+}, 1000);
+
+function setStageStatus(ok) {
+  stageConnected = ok;
+  setStatus('stage', ok);
+}
+
+document.getElementById('open-stage-btn').addEventListener('click', () => {
+  window.open('stage.html', 'owl-stage', 'popup,width=1280,height=720');
 });
 
 // ── Start button ───────────────────────────────────────────────
@@ -108,14 +131,19 @@ document.getElementById('start-btn').addEventListener('click', async () => {
         setStatus('audio', true);
         if (!audioTracker.canShiftPitch) disablePitchUI();
         applyVoiceUI();
+        updateDeviceLists();
       })
       .catch(e => showMessage('マイクの初期化に失敗: ' + e.message));
   }
   if (video) {
+    faceCameraSel.dataset.current = video.getVideoTracks()[0]?.getSettings().deviceId ?? '';
     faceTracker.init(video)
       .then(() => setStatus('face', true))
       .catch(e => showMessage('顔認識の初期化に失敗: ' + e.message));
   }
+
+  updateDeviceLists();
+  navigator.mediaDevices.addEventListener?.('devicechange', updateDeviceLists);
 });
 
 // カメラとマイクを 1 回の許可でまとめて取得（片方だけ失敗しても、もう片方は使う）
@@ -200,6 +228,79 @@ for (const el of [pitchSlider, robotCheck]) {
   });
 }
 monitorCheck.addEventListener('change', applyVoiceUI);
+
+// ── Devices（顔認識カメラ・ゲスト確認カメラ・声の出力先）──────────
+const faceCameraSel  = document.getElementById('face-camera');
+const guestCameraSel = document.getElementById('guest-camera');
+const outputSel      = document.getElementById('audio-output');
+const guestPreview   = document.getElementById('guest-preview');
+
+// 許可をもらった後でないと機器の名前が取れないので、開始後に一覧を作る
+async function updateDeviceLists() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const cams    = devices.filter(d => d.kind === 'videoinput');
+  const outs    = devices.filter(d => d.kind === 'audiooutput');
+  const name    = (d, i, kind) => d.label || `${kind} ${i + 1}`;
+
+  fillSelect(faceCameraSel, cams.map((d, i) => [d.deviceId, name(d, i, 'カメラ')]));
+  fillSelect(guestCameraSel, [['', '使わない'], ...cams.map((d, i) => [d.deviceId, name(d, i, 'カメラ')])]);
+
+  if (audioTracker.canSelectOutput) {
+    fillSelect(outputSel, [['', '既定の出力'], ...outs.filter(d => d.deviceId !== 'default')
+      .map((d, i) => [d.deviceId, name(d, i, 'スピーカー')])]);
+    outputSel.disabled = false;
+  } else {
+    fillSelect(outputSel, [['', 'このブラウザでは選べません（Chrome 推奨）']]);
+    outputSel.disabled = true;
+  }
+}
+
+// 選択中の値（dataset.current）を保ったまま選択肢を入れ替える
+function fillSelect(sel, options) {
+  const current = sel.dataset.current ?? sel.value;
+  sel.replaceChildren(...options.map(([value, text]) => new Option(text, value)));
+  if (options.some(([v]) => v === current)) sel.value = current;
+}
+
+faceCameraSel.addEventListener('change', async () => {
+  faceCameraSel.dataset.current = faceCameraSel.value;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: faceCameraSel.value }, width: { ideal: 640 }, height: { ideal: 480 } },
+    });
+    await faceTracker.setStream(stream);
+  } catch (e) {
+    showMessage('カメラを切り替えられません: ' + e.message);
+  }
+});
+
+// ゲストの様子をホストだけが見るためのカメラ
+guestCameraSel.addEventListener('change', async () => {
+  guestCameraSel.dataset.current = guestCameraSel.value;
+  guestPreview.srcObject?.getTracks().forEach(t => t.stop());
+  guestPreview.srcObject = null;
+  guestPreview.hidden = true;
+  if (!guestCameraSel.value) return;
+
+  try {
+    guestPreview.srcObject = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: guestCameraSel.value } },
+    });
+    guestPreview.hidden = false;
+    await guestPreview.play();
+  } catch (e) {
+    showMessage('ゲスト確認カメラを使えません: ' + e.message);
+  }
+});
+
+outputSel.addEventListener('change', async () => {
+  outputSel.dataset.current = outputSel.value;
+  try {
+    await audioTracker.setOutputDevice(outputSel.value);
+  } catch (e) {
+    showMessage('声の出力先を変更できません: ' + e.message);
+  }
+});
 
 // ── Utilities ──────────────────────────────────────────────────
 function showMessage(text) {

@@ -28,6 +28,9 @@
     </div>
   </div>
 
+  <!-- ゲスト確認カメラ（ホストだけが見る） -->
+  <video id="guest-preview" autoplay muted playsinline hidden></video>
+
   <!-- エラー表示 -->
   <div id="message" hidden></div>
 
@@ -40,12 +43,36 @@
       <span class="status-item">
         <span id="status-audio" class="dot">○</span> マイク
       </span>
+      <span class="status-item">
+        <span id="status-stage" class="dot">○</span> ゲスト画面
+      </span>
     </div>
 
     <!-- Volume meter -->
     <div id="vol-meter">
       <div id="vol-bar"></div>
     </div>
+
+    <!-- Guest screen -->
+    <details id="stage-settings" open>
+      <summary>📺 ゲスト画面</summary>
+      <div class="settings-row">
+        <button id="open-stage-btn" type="button">ゲスト画面を開く</button>
+      </div>
+      <div class="settings-row">
+        <label for="face-camera">顔認識カメラ</label>
+        <select id="face-camera"></select>
+      </div>
+      <div class="settings-row">
+        <label for="guest-camera">ゲスト確認カメラ</label>
+        <select id="guest-camera"><option value="">使わない</option></select>
+      </div>
+      <div class="settings-row">
+        <label for="audio-output">声の出力先</label>
+        <select id="audio-output"></select>
+      </div>
+      <p class="note">ゲスト画面のウィンドウを TV / プロジェクターに移してダブルクリックで全画面。声は「🎤 ボイスチェンジャー」の「変えた声を再生する」を ON にすると出力先から流れます。</p>
+    </details>
 
     <!-- Threshold control -->
     <details id="settings">
