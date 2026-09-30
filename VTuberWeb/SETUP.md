@@ -21,6 +21,41 @@
 
 ---
 
+## テスト用フクロウモデル（自分のモデルが無くても動作確認できる）
+
+`public/models/test_owl/` に、スクリプトで生成したテスト用のフクロウモデルが入っている。  
+`MODEL_PATH` の初期値はこのモデルなので、Step 1 だけ済ませればすぐに Step 5 へ進める。
+
+| パラメータ | 動き |
+|-----------|------|
+| `ParamAngleX` / `ParamAngleY` | 顔の向き（左右 / 上下） |
+| `ParamAngleZ` | 頭の傾き |
+| `ParamEyeLOpen` / `ParamEyeROpen` | 左目 / 右目の開閉 |
+| `ParamMouthOpenY` | くちばしの開閉 |
+| `ParamBrowLY` / `ParamBrowRY` | 左眉 / 右眉の上下 |
+
+### カメラ無しで確認する — `test.html`
+
+サーバー起動後に `https://localhost:8443/test.html` を開くと、モデルの全パラメータをスライダーで動かせる。
+
+- 別のモデルを確認: `test.html?model=models/your_owl/your_owl.model3.json`
+- 初期値を指定: `test.html?ParamAngleX=30&ParamEyeLOpen=0`
+
+自分のモデルのパラメータ ID を調べるのにも使える（Step 4）。
+
+### モデルの再生成・検証
+
+```bash
+cd VTuberWeb
+node tools/owl/generate.js   # public/models/test_owl/ を再生成
+node tools/owl/verify.js     # Cubism Core で読み込み、各パラメータの動作を検証
+```
+
+`verify.js` は `public/live2dcubismcore.min.js`（Step 1）を使う。  
+形や動きは `tools/owl/generate.js` の `SHAPES` / `MESHES` / `deformers` を編集して調整する。
+
+---
+
 ## Step 2 — モデルファイルを配置する
 
 `public/models/<モデル名>/` ディレクトリを作り、モデルファイルを一式コピーする。

@@ -2,8 +2,8 @@ import { Live2DCharacter } from './live2dCharacter.js';
 import { FaceTracker }     from './faceTracker.js';
 import { AudioTracker }    from './audioTracker.js';
 
-// モデルの .model3.json ファイルへのパス（モデル配置後に変更）
-const MODEL_PATH = 'models/your_model/your_model.model3.json';
+// モデルの .model3.json ファイルへのパス（自分のモデルを配置したら変更）
+const MODEL_PATH = 'models/test_owl/test_owl.model3.json';
 
 // ── Pixi.js ──────────────────────────────────────────────────
 const app = new PIXI.Application({

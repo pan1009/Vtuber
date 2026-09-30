@@ -37,7 +37,8 @@ export class Live2DCharacter {
     this._app.stage.addChild(model);
     this._fit();
 
-    model.on('beforeModelUpdate', () => this._applyParams());
+    // beforeModelUpdate は Live2DModel ではなく internalModel が発火する
+    model.internalModel.on('beforeModelUpdate', () => this._applyParams());
     return this;
   }
 
