@@ -13,8 +13,13 @@ const PARAMS = {
 const DEG = r => r * (180 / Math.PI);
 
 export class Live2DCharacter {
-  constructor(pixiApp) {
+  /**
+   * @param {PIXI.Application} pixiApp
+   * @param {{portraitHeight?: number}} opts 縦長画面のとき、モデルを収める高さの割合
+   */
+  constructor(pixiApp, { portraitHeight = 0.7 } = {}) {
     this._app    = pixiApp;
+    this._portraitHeight = portraitHeight;
     this._model  = null;
     this._natW   = 0;
     this._natH   = 0;
@@ -57,8 +62,8 @@ export class Live2DCharacter {
 
   _fit() {
     const { width: sw } = this._app.screen;
-    // 縦長（スマホ縦持ち）では下の設定パネルに隠れないよう上 70% に収める
-    const sh = this._app.screen.height * (this._app.screen.height > sw ? 0.7 : 1);
+    // 縦長（スマホ縦持ち）では下の設定パネルに隠れないよう上の方に収める
+    const sh = this._app.screen.height * (this._app.screen.height > sw ? this._portraitHeight : 1);
     const scale = Math.min(sw / this._natW, sh / this._natH) * 0.9;
     this._model.scale.set(scale);
     this._model.position.set(
@@ -87,6 +92,13 @@ export class Live2DCharacter {
   setBrow(innerUp, downLeft, downRight) {
     this._params.browLY = innerUp - downLeft;
     this._params.browRY = innerUp - downRight;
+  }
+
+  // ゲスト画面へ送る / ゲスト画面で受け取るためのパラメータ一式
+  get params() { return { ...this._params }; }
+
+  setParams(params) {
+    Object.assign(this._params, params);
   }
 
   resize() {

@@ -135,7 +135,7 @@ h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.75rem; }
 }
 
 /* ── Settings ───────────────────────────────────────────── */
-#settings, #voice {
+#settings, #voice, #stage-settings {
   pointer-events: all;
   background: rgba(13,13,46,0.75);
   border: 1px solid rgba(255,255,255,0.1);
@@ -144,7 +144,7 @@ h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.75rem; }
   font-size: 0.8rem;
 }
 
-#settings summary, #voice summary {
+#settings summary, #voice summary, #stage-settings summary {
   cursor: pointer;
   color: #94a3b8;
   list-style: none;
@@ -169,8 +169,9 @@ h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.75rem; }
   cursor: pointer;
 }
 
-#voice-preset {
+#voice-preset, #face-camera, #guest-camera, #audio-output {
   flex: 1;
+  min-width: 0;
   padding: 0.3rem 0.4rem;
   font-size: 16px; /* iOS がフォーカス時にズームしないように */
   background: rgba(255,255,255,0.08);
@@ -197,4 +198,47 @@ h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.75rem; }
   text-align: right;
   color: #6366f1;
   font-weight: 600;
+}
+
+#open-stage-btn {
+  padding: 0.45rem 1.2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 2rem;
+  cursor: pointer;
+}
+#open-stage-btn:hover { background: #4f46e5; }
+
+/* ── Guest preview（ゲスト確認カメラ）───────────────────────── */
+#guest-preview {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+  right: calc(env(safe-area-inset-right, 0px) + 0.75rem);
+  width: min(40vw, 28rem);
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: #000;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 0.75rem;
+  z-index: 10;
+}
+
+/* ── Stage（ゲスト画面）───────────────────────────────────── */
+body.hide-cursor, body.hide-cursor * { cursor: none; }
+
+#hint {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.4rem 1rem;
+  background: rgba(0,0,0,0.5);
+  border-radius: 2rem;
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  pointer-events: none;
 }

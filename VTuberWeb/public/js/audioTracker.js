@@ -82,6 +82,14 @@ export class AudioTracker {
 
   get canShiftPitch() { return this._shifter !== null; }
 
+  // 声の出力先（TV のスピーカーなど）を選べるか（Chrome / Edge のみ）
+  get canSelectOutput() { return typeof this._ctx?.setSinkId === 'function'; }
+
+  /** @param {string} deviceId '' で既定の出力 */
+  async setOutputDevice(deviceId) {
+    if (this.canSelectOutput) await this._ctx.setSinkId(deviceId);
+  }
+
   _applyVoice() {
     if (!this._ctx) return;
     const { semitones, robot, monitor } = this._voice;

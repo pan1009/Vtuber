@@ -81,6 +81,14 @@ export class FaceTracker {
     this._rafId = requestAnimationFrame(() => this._loop());
   }
 
+  /** 顔認識に使うカメラを切り替える */
+  async setStream(stream) {
+    this._video.srcObject?.getTracks().forEach(t => t.stop());
+    this._video.srcObject = stream;
+    this._lastTime = -1;
+    await this._video.play();
+  }
+
   stop() {
     this.isRunning = false;
     if (this._rafId) cancelAnimationFrame(this._rafId);
