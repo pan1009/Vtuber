@@ -1,8 +1,8 @@
 // Live2D パラメータ ID — モデルに合わせて変更してください
 const PARAMS = {
-  angleX:    'ParamAngleX',
-  angleY:    'ParamAngleY',
-  angleZ:    'ParamAngleZ',
+  angleX:    'ParamAngleX',      // 顔の向き：左右
+  angleY:    'ParamAngleY',      // 顔の向き：上下
+  angleZ:    'ParamAngleZ',      // 頭の傾き
   eyeLOpen:  'ParamEyeLOpen',
   eyeROpen:  'ParamEyeROpen',
   mouthOpen: 'ParamMouthOpenY',
@@ -37,7 +37,8 @@ export class Live2DCharacter {
     this._app.stage.addChild(model);
     this._fit();
 
-    model.on('beforeModelUpdate', () => this._applyParams());
+    // beforeModelUpdate は Live2DModel ではなく internalModel が発火する
+    model.internalModel.on('beforeModelUpdate', () => this._applyParams());
     return this;
   }
 
@@ -64,9 +65,11 @@ export class Live2DCharacter {
     );
   }
 
+  // x: ピッチ（上下）, y: ヨー（左右）, z: ロール（傾き） — ラジアン
+  // Live2D 標準: ParamAngleX = 左右, ParamAngleY = 上下, ParamAngleZ = 傾き
   setHeadRotation(x, y, z) {
-    this._params.angleY = -DEG(y);   // 鏡像補正
-    this._params.angleX =  DEG(x);
+    this._params.angleX = -DEG(y);   // 鏡像補正
+    this._params.angleY =  DEG(x);
     this._params.angleZ =  DEG(z);
   }
 

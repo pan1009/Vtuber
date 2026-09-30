@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Live2D モデルテスト</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    #panel {
+      position: fixed; top: 1rem; right: 1rem; z-index: 10;
+      width: min(20rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow-y: auto;
+      padding: 1rem; background: rgba(0,0,0,0.55); border-radius: 0.75rem; font-size: 0.8rem;
+    }
+    #panel h2 { font-size: 0.95rem; margin-bottom: 0.25rem; }
+    #panel .path { color: #94a3b8; word-break: break-all; margin-bottom: 0.75rem; }
+    .param { display: grid; grid-template-columns: 1fr 3rem; gap: 0.1rem 0.5rem; margin-bottom: 0.6rem; }
+    .param label { grid-column: 1 / -1; font-family: ui-monospace, monospace; }
+    .param input { width: 100%; accent-color: #6366f1; }
+    .param output { text-align: right; font-variant-numeric: tabular-nums; }
+    #panel button {
+      margin-top: 0.25rem; padding: 0.4rem 0.9rem; border: none; border-radius: 1rem;
+      background: #6366f1; color: white; cursor: pointer;
+    }
+    #error { color: #f87171; white-space: pre-wrap; }
+  </style>
+
+  <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
+</head>
+<body>
+  <!--
+    カメラ・マイク無しでモデルを確認するためのページ。
+    モデル内の全パラメータをスライダーで操作できる。
+      test.html                         … テスト用フクロウ
+      test.html?model=models/xxx/xxx.model3.json
+      test.html?ParamAngleX=30&ParamEyeLOpen=0  … 初期値を指定
+  -->
+  <canvas id="canvas"></canvas>
+  <div id="panel">
+    <h2>パラメータ</h2>
+    <div class="path" id="model-path"></div>
+    <div id="error"></div>
+    <div id="params"></div>
+    <button id="reset-btn">リセット</button>
+  </div>
+  <script type="module" src="js/modelTest.js"></script>
+</body>
+</html>
