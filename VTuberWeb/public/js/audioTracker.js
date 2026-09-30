@@ -1,10 +1,12 @@
 // マイク音量の取得（口パク用）とボイスチェンジャー
 //
-//   mic ─┬─ analyser（口パク：加工前の声で判定）
-//        └─ pitchShifter ─ robot ─ monitor ─ スピーカー / イヤホン
+//   mic ─ input ─┬─ analyser（口パク：加工前の声で判定）
+//                └─ pitchShifter ─ robot ─ monitor ─ スピーカー / イヤホン
 export class AudioTracker {
   constructor() {
     this._ctx       = null;
+    this._source    = null;   // マイク（切り替え時に差し替える）
+    this._input     = null;   // マイクをまとめて各処理へ分配するノード
     this._analyser  = null;
     this._buffer    = null;
     this._rafId     = null;
@@ -30,17 +32,33 @@ export class AudioTracker {
     this._ctx = ctx;
     if (ctx.state === 'suspended') await ctx.resume();
 
-    const source = ctx.createMediaStreamSource(stream);
+    this._input = ctx.createGain();
+    this.setInputStream(stream);
 
     this._analyser = ctx.createAnalyser();
     this._analyser.fftSize = 1024;
     this._analyser.smoothingTimeConstant = 0.6;
-    source.connect(this._analyser);
+    this._input.connect(this._analyser);
     this._buffer = new Float32Array(this._analyser.fftSize);
 
-    await this._buildVoiceChain(source);
+    await this._buildVoiceChain(this._input);
     this._applyVoice();
     this._loop();
+  }
+
+  /** 声の入力（マイク）を切り替える */
+  setInputStream(stream) {
+    if (this._source) {
+      this._source.disconnect();
+      this._source.mediaStream.getTracks().forEach(t => t.stop());
+    }
+    this._source = this._ctx.createMediaStreamSource(stream);
+    this._source.connect(this._input);
+  }
+
+  /** 使用中のマイクの deviceId */
+  get inputDeviceId() {
+    return this._source?.mediaStream.getAudioTracks()[0]?.getSettings().deviceId ?? '';
   }
 
   async _buildVoiceChain(source) {

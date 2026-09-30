@@ -20,6 +20,7 @@ export class Live2DCharacter {
   constructor(pixiApp, { portraitHeight = 0.7 } = {}) {
     this._app    = pixiApp;
     this._portraitHeight = portraitHeight;
+    this.invert  = { leftRight: false, upDown: false, tilt: false };
     this._model  = null;
     this._natW   = 0;
     this._natH   = 0;
@@ -74,10 +75,12 @@ export class Live2DCharacter {
 
   // x: ピッチ（上下）, y: ヨー（左右）, z: ロール（傾き） — ラジアン
   // Live2D 標準: ParamAngleX = 左右, ParamAngleY = 上下, ParamAngleZ = 傾き
+  // 向きが逆のときは invert（画面の「動きの向き」設定）で反転する
   setHeadRotation(x, y, z) {
-    this._params.angleX =  DEG(y);   // 鏡のように同じ側へ向く
-    this._params.angleY = -DEG(x);
-    this._params.angleZ =  DEG(z);
+    const inv = this.invert;
+    this._params.angleX = -DEG(y) * (inv.leftRight ? -1 : 1);
+    this._params.angleY = -DEG(x) * (inv.upDown    ? -1 : 1);
+    this._params.angleZ =  DEG(z) * (inv.tilt      ? -1 : 1);
   }
 
   setEyeBlink(left, right) {

@@ -68,6 +68,10 @@
         <select id="guest-camera"><option value="">使わない</option></select>
       </div>
       <div class="settings-row">
+        <label for="audio-input">声の入力（マイク）</label>
+        <select id="audio-input"></select>
+      </div>
+      <div class="settings-row">
         <label for="audio-output">声の出力先</label>
         <select id="audio-output"></select>
       </div>
@@ -76,11 +80,17 @@
 
     <!-- Threshold control -->
     <details id="settings">
-      <summary>⚙️ 感度設定</summary>
+      <summary>⚙️ 感度・向きの設定</summary>
       <div class="settings-row">
         <label>口開きしきい値</label>
         <input id="threshold-slider" type="range" min="0.005" max="0.08" step="0.005" value="0.02">
         <span id="threshold-value">0.02</span>
+      </div>
+      <div class="settings-row">
+        <label>動きの向きを反転</label>
+        <label><input id="invert-lr" type="checkbox"> 左右</label>
+        <label><input id="invert-ud" type="checkbox"> 上下</label>
+        <label><input id="invert-tilt" type="checkbox"> 傾き</label>
       </div>
     </details>
 
