@@ -16,15 +16,24 @@ const app = new PIXI.Application({
   autoDensity:     true,
 });
 
-window.addEventListener('resize', () => {
+// スマホの回転・アドレスバーの出し入れにも追従する
+function onResize() {
   app.renderer.resize(window.innerWidth, window.innerHeight);
   character.resize();
-});
+}
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', () => setTimeout(onResize, 300));
 
 // ── Character & Trackers ──────────────────────────────────────
 const character    = new Live2DCharacter(app);
 const faceTracker  = new FaceTracker();
 const audioTracker = new AudioTracker();
+
+// カメラ・マイクの許可を待たずにモデルを表示する
+character.load(MODEL_PATH).catch(e => {
+  console.warn('Live2D モデルのロードに失敗:', e);
+  showMessage('モデルを読み込めませんでした: ' + e.message);
+});
 
 // ── Tracking state ─────────────────────────────────────────────
 const state = {
@@ -76,24 +85,64 @@ app.ticker.add(() => {
 
 // ── Start button ───────────────────────────────────────────────
 document.getElementById('start-btn').addEventListener('click', async () => {
+  // iOS Safari はユーザー操作の中で作らないと音が止まったままになる
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioCtx({ latencyHint: 'interactive' });
+  audioCtx.resume();
+
   document.getElementById('start-screen').style.display = 'none';
   setStatus('face',  false);
   setStatus('audio', false);
 
-  try {
-    await Promise.all([
-      faceTracker.init().then(() => setStatus('face',  true)),
-      audioTracker.init().then(() => setStatus('audio', true)),
-    ]);
-  } catch (e) {
-    alert('カメラ/マイクのアクセスが必要です:\n' + e.message);
+  if (!navigator.mediaDevices?.getUserMedia) {
+    showMessage('このブラウザ（または http 接続）ではカメラ・マイクを使えません。https で開いてください。');
     return;
   }
 
-  character.load(MODEL_PATH).catch(e =>
-    console.warn('Live2D モデルのロードに失敗:', e)
-  );
+  const { video, audio, errors } = await getMediaStreams();
+  if (errors.length) showMessage('カメラ/マイクを使えません: ' + errors.join(' / '));
+
+  if (audio) {
+    audioTracker.init(audioCtx, audio)
+      .then(() => {
+        setStatus('audio', true);
+        if (!audioTracker.canShiftPitch) disablePitchUI();
+        applyVoiceUI();
+      })
+      .catch(e => showMessage('マイクの初期化に失敗: ' + e.message));
+  }
+  if (video) {
+    faceTracker.init(video)
+      .then(() => setStatus('face', true))
+      .catch(e => showMessage('顔認識の初期化に失敗: ' + e.message));
+  }
 });
+
+// カメラとマイクを 1 回の許可でまとめて取得（片方だけ失敗しても、もう片方は使う）
+async function getMediaStreams() {
+  const videoOpts = { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } };
+  const audioOpts = { echoCancellation: true, noiseSuppression: true };
+  const gum = c => navigator.mediaDevices.getUserMedia(c);
+
+  try {
+    const s = await gum({ video: videoOpts, audio: audioOpts });
+    return {
+      video:  new MediaStream(s.getVideoTracks()),
+      audio:  new MediaStream(s.getAudioTracks()),
+      errors: [],
+    };
+  } catch {
+    const [v, a] = await Promise.allSettled([gum({ video: videoOpts }), gum({ audio: audioOpts })]);
+    const errors = [];
+    if (v.status === 'rejected') errors.push('カメラ: ' + v.reason.message);
+    if (a.status === 'rejected') errors.push('マイク: ' + a.reason.message);
+    return {
+      video: v.status === 'fulfilled' ? v.value : null,
+      audio: a.status === 'fulfilled' ? a.value : null,
+      errors,
+    };
+  }
+}
 
 // ── Threshold slider ───────────────────────────────────────────
 const slider = document.getElementById('threshold-slider');
@@ -103,7 +152,62 @@ slider.addEventListener('input', () => {
   label.textContent      = slider.value;
 });
 
+// ── Voice changer ──────────────────────────────────────────────
+const VOICE_PRESETS = {
+  none:   { semitones:   0, robot: false },
+  high:   { semitones:   5, robot: false },
+  cute:   { semitones:   8, robot: false },
+  low:    { semitones:  -5, robot: false },
+  giant:  { semitones: -10, robot: false },
+  robot:  { semitones:   0, robot: true  },
+};
+
+const presetSel    = document.getElementById('voice-preset');
+const pitchSlider  = document.getElementById('pitch-slider');
+const pitchLabel   = document.getElementById('pitch-value');
+const robotCheck   = document.getElementById('robot-check');
+const monitorCheck = document.getElementById('monitor-check');
+
+function applyVoiceUI() {
+  const semitones = parseInt(pitchSlider.value, 10);
+  pitchLabel.textContent = (semitones > 0 ? '+' : '') + semitones;
+  audioTracker.setVoice({
+    semitones,
+    robot:   robotCheck.checked,
+    monitor: monitorCheck.checked,
+  });
+}
+
+function disablePitchUI() {
+  pitchSlider.disabled = true;
+  pitchSlider.value    = 0;
+  pitchLabel.textContent = '非対応';
+}
+
+presetSel.addEventListener('change', () => {
+  const p = VOICE_PRESETS[presetSel.value];
+  if (!p) return;
+  if (!pitchSlider.disabled) pitchSlider.value = p.semitones;
+  robotCheck.checked = p.robot;
+  applyVoiceUI();
+});
+
+// 手で調整したらプリセット表示を「カスタム」にする
+for (const el of [pitchSlider, robotCheck]) {
+  el.addEventListener('input', () => {
+    presetSel.value = 'custom';
+    applyVoiceUI();
+  });
+}
+monitorCheck.addEventListener('change', applyVoiceUI);
+
 // ── Utilities ──────────────────────────────────────────────────
+function showMessage(text) {
+  const el = document.getElementById('message');
+  el.textContent = text;
+  el.hidden = false;
+}
+
 function setStatus(type, ok) {
   const el = document.getElementById(`status-${type}`);
   if (!el) return;
