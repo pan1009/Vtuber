@@ -1,29 +1,104 @@
+// マイク音量の取得（口パク用）とボイスチェンジャー
+//
+//   mic ─┬─ analyser（口パク：加工前の声で判定）
+//        └─ pitchShifter ─ robot ─ monitor ─ スピーカー / イヤホン
 export class AudioTracker {
   constructor() {
+    this._ctx       = null;
     this._analyser  = null;
     this._buffer    = null;
     this._rafId     = null;
+    this._shifter   = null;
+    this._robot     = null;
+    this._robotOsc  = null;
+    this._robotDepth = null;
+    this._dry       = null;
+    this._wet       = null;
+    this._monitor   = null;
     this.threshold  = 0.02;   // RMS threshold (adjustable from UI)
     /** @type {(rms: number, isAboveThreshold: boolean) => void} */
     this.onUpdate   = null;
+
+    this._voice = { semitones: 0, robot: false, monitor: false };
   }
 
-  async init() {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-
-    // Resume on user interaction (required by some browsers)
+  /**
+   * @param {AudioContext} ctx  ユーザー操作の中で作った AudioContext（iOS 対策）
+   * @param {MediaStream} stream マイクの音声ストリーム
+   */
+  async init(ctx, stream) {
+    this._ctx = ctx;
     if (ctx.state === 'suspended') await ctx.resume();
 
     const source = ctx.createMediaStreamSource(stream);
+
     this._analyser = ctx.createAnalyser();
     this._analyser.fftSize = 1024;
     this._analyser.smoothingTimeConstant = 0.6;
     source.connect(this._analyser);
-
     this._buffer = new Float32Array(this._analyser.fftSize);
+
+    await this._buildVoiceChain(source);
+    this._applyVoice();
     this._loop();
+  }
+
+  async _buildVoiceChain(source) {
+    const ctx = this._ctx;
+
+    // ロボット声：低い周波数で振幅を揺らすリングモジュレーション
+    this._robot = ctx.createGain();
+    this._robot.gain.value = 1;
+    this._robotOsc = ctx.createOscillator();
+    this._robotOsc.frequency.value = 50;
+    this._robotDepth = ctx.createGain();
+    this._robotDepth.gain.value = 0;
+    this._robotOsc.connect(this._robotDepth).connect(this._robot.gain);
+    this._robotOsc.start();
+
+    this._monitor = ctx.createGain();
+    this._monitor.gain.value = 0;
+    this._robot.connect(this._monitor).connect(ctx.destination);
+
+    // ピッチ 0 のときは加工せずそのまま流す（音質・遅延のため）
+    this._dry = ctx.createGain();
+    source.connect(this._dry).connect(this._robot);
+
+    try {
+      await ctx.audioWorklet.addModule(new URL('./pitchShifterWorklet.js', import.meta.url));
+      this._shifter = new AudioWorkletNode(ctx, 'pitch-shifter');
+      this._wet = ctx.createGain();
+      source.connect(this._shifter).connect(this._wet).connect(this._robot);
+    } catch (e) {
+      console.warn('ピッチ変更が使えないブラウザです:', e);
+    }
+  }
+
+  /** @param {{semitones?: number, robot?: boolean, monitor?: boolean}} opts */
+  setVoice(opts) {
+    Object.assign(this._voice, opts);
+    this._applyVoice();
+  }
+
+  get canShiftPitch() { return this._shifter !== null; }
+
+  _applyVoice() {
+    if (!this._ctx) return;
+    const { semitones, robot, monitor } = this._voice;
+    const t = this._ctx.currentTime;
+    const shifting = this._shifter && semitones !== 0;
+
+    if (this._shifter) {
+      this._shifter.parameters.get('ratio').setValueAtTime(2 ** (semitones / 12), t);
+      this._wet.gain.setTargetAtTime(shifting ? 1 : 0, t, 0.02);
+    }
+    this._dry.gain.setTargetAtTime(shifting ? 0 : 1, t, 0.02);
+
+    // ロボット ON: gain = 0 + 1.5·sin(50Hz)（リングモジュレーション）, OFF: gain = 1
+    this._robot.gain.setTargetAtTime(robot ? 0 : 1, t, 0.02);
+    this._robotDepth.gain.setTargetAtTime(robot ? 1.5 : 0, t, 0.02);
+
+    this._monitor.gain.setTargetAtTime(monitor ? 1 : 0, t, 0.02);
   }
 
   _loop() {

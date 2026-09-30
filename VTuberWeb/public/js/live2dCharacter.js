@@ -56,7 +56,9 @@ export class Live2DCharacter {
   }
 
   _fit() {
-    const { width: sw, height: sh } = this._app.screen;
+    const { width: sw } = this._app.screen;
+    // 縦長（スマホ縦持ち）では下の設定パネルに隠れないよう上 70% に収める
+    const sh = this._app.screen.height * (this._app.screen.height > sw ? 0.7 : 1);
     const scale = Math.min(sw / this._natW, sh / this._natH) * 0.9;
     this._model.scale.set(scale);
     this._model.position.set(
@@ -68,8 +70,8 @@ export class Live2DCharacter {
   // x: ピッチ（上下）, y: ヨー（左右）, z: ロール（傾き） — ラジアン
   // Live2D 標準: ParamAngleX = 左右, ParamAngleY = 上下, ParamAngleZ = 傾き
   setHeadRotation(x, y, z) {
-    this._params.angleX = -DEG(y);   // 鏡像補正
-    this._params.angleY =  DEG(x);
+    this._params.angleX =  DEG(y);   // 鏡のように同じ側へ向く
+    this._params.angleY = -DEG(x);
     this._params.angleZ =  DEG(z);
   }
 
