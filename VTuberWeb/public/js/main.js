@@ -180,6 +180,26 @@ slider.addEventListener('input', () => {
   label.textContent      = slider.value;
 });
 
+// ── Head direction（動きの向きの反転。ブラウザに保存する）──────────
+const INVERT_KEY = 'vtuber-owl-invert';
+const invertChecks = {
+  leftRight: document.getElementById('invert-lr'),
+  upDown:    document.getElementById('invert-ud'),
+  tilt:      document.getElementById('invert-tilt'),
+};
+
+try {
+  Object.assign(character.invert, JSON.parse(localStorage.getItem(INVERT_KEY)) ?? {});
+} catch { /* 保存できない環境では毎回初期値 */ }
+
+for (const [key, el] of Object.entries(invertChecks)) {
+  el.checked = character.invert[key];
+  el.addEventListener('change', () => {
+    character.invert[key] = el.checked;
+    try { localStorage.setItem(INVERT_KEY, JSON.stringify(character.invert)); } catch {}
+  });
+}
+
 // ── Voice changer ──────────────────────────────────────────────
 const VOICE_PRESETS = {
   none:   { semitones:   0, robot: false },
@@ -232,6 +252,7 @@ monitorCheck.addEventListener('change', applyVoiceUI);
 // ── Devices（顔認識カメラ・ゲスト確認カメラ・声の出力先）──────────
 const faceCameraSel  = document.getElementById('face-camera');
 const guestCameraSel = document.getElementById('guest-camera');
+const inputSel       = document.getElementById('audio-input');
 const outputSel      = document.getElementById('audio-output');
 const guestPreview   = document.getElementById('guest-preview');
 
@@ -242,7 +263,11 @@ async function updateDeviceLists() {
   const outs    = devices.filter(d => d.kind === 'audiooutput');
   const name    = (d, i, kind) => d.label || `${kind} ${i + 1}`;
 
+  const mics    = devices.filter(d => d.kind === 'audioinput');
+
   fillSelect(faceCameraSel, cams.map((d, i) => [d.deviceId, name(d, i, 'カメラ')]));
+  if (!inputSel.dataset.current) inputSel.dataset.current = audioTracker.inputDeviceId;
+  fillSelect(inputSel, mics.map((d, i) => [d.deviceId, name(d, i, 'マイク')]));
   fillSelect(guestCameraSel, [['', '使わない'], ...cams.map((d, i) => [d.deviceId, name(d, i, 'カメラ')])]);
 
   if (audioTracker.canSelectOutput) {
@@ -290,6 +315,19 @@ guestCameraSel.addEventListener('change', async () => {
     await guestPreview.play();
   } catch (e) {
     showMessage('ゲスト確認カメラを使えません: ' + e.message);
+  }
+});
+
+// 声の入力（例：入力はイヤホンのマイク、出力は TV のスピーカー）
+inputSel.addEventListener('change', async () => {
+  inputSel.dataset.current = inputSel.value;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { deviceId: { exact: inputSel.value }, echoCancellation: true, noiseSuppression: true },
+    });
+    audioTracker.setInputStream(stream);
+  } catch (e) {
+    showMessage('マイクを切り替えられません: ' + e.message);
   }
 });
 
